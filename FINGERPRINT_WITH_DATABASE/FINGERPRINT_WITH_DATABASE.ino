@@ -40,6 +40,8 @@ SoftwareSerial mySerial(Finger_Rx, Finger_Tx);
 
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
+int level_fingerprintregister=0;
+
 
 const char *ssid = "MITSI-Admin"; //WIFI NAME OR HOTSPOT
 const char *password = "M@ssiv3its_2017"; //WIFI PASSWORD POR MOBILE HOTSPOT PASSWORD
@@ -49,6 +51,7 @@ void setup() {
    delay(1000);
    
    Serial.begin(9600);
+   finger.begin(57600);//start fingerprint
    WiFi.mode(WIFI_OFF);    
    delay(1000);
    WiFi.mode(WIFI_STA);
@@ -65,7 +68,12 @@ void setup() {
    Serial.println(ssid);
    Serial.print("IP address: ");
    Serial.println(WiFi.localIP()); 
-   
+   if (finger.verifyPassword()) {
+    Serial.println("Found fingerprint sensor!");
+  } else {
+    Serial.println("Did not find fingerprint sensor :(");
+    while (1) { delay(1); }
+  }
 }
 
 int register_fingerprint() {//ready=1 standby=0
@@ -87,26 +95,34 @@ int register_fingerprint() {//ready=1 standby=0
   }
   return 0;
 }
+///////////know if successfully registered the finger////////////
+void successfully_registeredf(){
+  level_fingerprintregister++;
+}
+void reset_counterlevel(){
+  level_fingerprintregister=level_fingerprintregister*0;
+}
+///////////////////////////////////////////
 
 void insert_fingerprint() {
   if(WiFi.status() == WL_CONNECTED) {
     Serial.println("Wifi Connected");
     HTTPClient http;
-    int id = finger.templateCount + 3;
+    int id = finger.templateCount + 3;//start with 3
     Serial.println(id);
-    Serial.println(getFingerprintEnroll(id));
+    while(level_fingerprintregister==0){
+      getFingerprintEnroll(id);
+    }
+    String postData = "fingerid="+String(id)+"&action=insert_fingerprint";
+    http.begin(wificlient,"http://192.168.1.8/BIOMETRICS/fingerprint-actions/process.php");              
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");  
+    int httpCode = http.POST(postData);
+    String payload = http.getString();
+    if(httpCode > 0){
+      Serial.println(payload);
+    }
+    reset_counterlevel();
     http.end();
-//    if(getFingerprintEnroll(id)==FINGERPRINT_OK){
-//      String postData = "fingerid="+String(id)+"&action=insert_fingerprint";
-//      http.begin(wificlient,"http://192.168.1.8/BIOMETRICS/fingerprint-actions/process.php");              
-//      http.addHeader("Content-Type", "application/x-www-form-urlencoded");  
-//      int httpCode = http.POST(postData);
-//      String payload = http.getString();
-//      if(httpCode > 0){
-//       Serial.println(payload);
-//      }
-//      http.end();
-//    }
   }
 }
 
@@ -233,6 +249,7 @@ uint8_t getFingerprintEnroll(int id) {
   p = finger.storeModel(id);
   if (p == FINGERPRINT_OK) {
     Serial.println("Stored!");
+    successfully_registeredf();
     return p;
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("Communication error");
@@ -260,6 +277,5 @@ void loop() {
 // else{
 //  
 // }
- 
  delay(2000);    
 }
