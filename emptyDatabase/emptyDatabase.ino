@@ -49,9 +49,7 @@ void setup()
     Serial.println("Did not find fingerprint sensor :(");
     while (1);
   }
-  
   finger.emptyDatabase();
-
   Serial.println("Now database is empty :)");
 }
 
