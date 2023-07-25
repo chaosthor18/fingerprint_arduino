@@ -1,0 +1,2 @@
+finger.loadModel(id); //load model by number id
+uint8_t p = finger.getImage(); //get image of finger current
